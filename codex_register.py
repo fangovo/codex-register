@@ -1,5 +1,4 @@
-[file name]: codex_register.py
-[file content start]
+
 """
 codex 账号协议注册
 直接调用 OpenAI 认证接口完成注册流程，无需浏览器。
@@ -909,4 +908,4 @@ if __name__ == "__main__":
     # 修复 missing import
     import string
     main()
-[file content end]
+
