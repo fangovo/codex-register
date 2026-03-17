@@ -57,15 +57,16 @@ LOG_FILE = os.path.join(SCRIPT_DIR, "codex_register.log")
 PROXY_CACHE_FILE = os.path.join(SCRIPT_DIR, "proxy_cache.json")
 
 
-
-# 邮箱后缀
-EMAIL_DOMAINS = ["yifang.de5.net"]
-# Token 上传服务器
-CPA_URL = "https://cpafan-dai.onrender.com" #https://127.0.0.1:8317
-MANAGEMENT_KEY = "wzl1230."   #wzl1230.
-# MailAPI 配置（固定）
-MAIL_API_URL = "https://mail-api.yifang.de5.net"
-MAIL_API_AUTH = "wzl1230."
+#邮箱域名域名
+EMAIL_DOMAINS = _env_list("EMAIL_DOMAINS", [""])
+ # Token 上传服务器
+CPA_URL = _env("CPA_URL", "")
+ # Token 上传服务器密码
+MANAGEMENT_KEY = _env("MANAGEMENT_KEY", "")
+ # MailAPI 配置邮箱
+MAIL_API_URL = _env("MAIL_API_URL", "")
+ # MailAPI 配置邮箱密码
+MAIL_API_AUTH = _env("MAIL_API_AUTH", "")
 MAIL_PASSWD = ""  # 可选，cloudflare_temp_email私有站点密码
 # 超时与重试
 MAIL_POLL_TIMEOUT = 180
