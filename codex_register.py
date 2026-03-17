@@ -1,3 +1,5 @@
+[file name]: codex_register.py
+[file content start]
 """
 codex 账号协议注册
 直接调用 OpenAI 认证接口完成注册流程，无需浏览器。
@@ -56,26 +58,26 @@ RESULTS_DIR = os.path.join(SCRIPT_DIR, "tokens")
 LOG_FILE = os.path.join(SCRIPT_DIR, "codex_register.log")
 PROXY_CACHE_FILE = os.path.join(SCRIPT_DIR, "proxy_cache.json")
 
+# 环境变量读取函数
+def _env(key: str, default: str = "") -> str:
+    """从环境变量读取配置，如果不存在则返回默认值"""
+    return os.environ.get(key, default)
 
-#邮箱域名域名
+# 邮箱域名
 EMAIL_DOMAINS = _env("EMAIL_DOMAINS", "")
- # Token 上传服务器
+# Token 上传服务器
 CPA_URL = _env("CPA_URL", "")
- # Token 上传服务器密码
+# Token 上传服务器密码
 MANAGEMENT_KEY = _env("MANAGEMENT_KEY", "")
- # MailAPI 配置邮箱
+# MailAPI 配置邮箱
 MAIL_API_URL = _env("MAIL_API_URL", "")
- # MailAPI 配置邮箱密码
+# MailAPI 配置邮箱密码
 MAIL_API_AUTH = _env("MAIL_API_AUTH", "")
 MAIL_PASSWD = ""  # 可选，cloudflare_temp_email私有站点密码
 # 超时与重试
 MAIL_POLL_TIMEOUT = 180
 OTP_RESEND_INTERVAL = 25
 MAX_RETRY_PER_ACCOUNT = 5
-
-
-
-
 
 # ═══════════════════════════════════════════════════════
 # 日志
@@ -107,8 +109,11 @@ class MailAccount:
 def random_email() -> str:
     """随机生成邮箱地址"""
     import string
+    if not EMAIL_DOMAINS:
+        raise ValueError("EMAIL_DOMAINS 环境变量未设置，请设置可用的邮箱域名")
+    domains = EMAIL_DOMAINS.split(',')
     local = ''.join(random.choices(string.ascii_lowercase + string.digits, k=14))
-    return f"{local}@{random.choice(EMAIL_DOMAINS)}"
+    return f"{local}@{random.choice(domains)}"
 
 
 def load_proxy_pool(path: str = PROXY_CACHE_FILE) -> list[str]:
@@ -143,7 +148,6 @@ def pick_random_proxy(pool: list[str]) -> str:
     if not pool:
         return ""
     return random.choice(pool)
-
 
 
 # ═══════════════════════════════════════════════════════
@@ -436,8 +440,6 @@ class APIResponse:
     def ok(self) -> bool:
         return 200 <= self.status < 300
 
-import secrets
-import string
 
 def generate_password():
     # 1. 定义字符集
@@ -464,6 +466,8 @@ def generate_password():
     password = "".join(password_list)
     
     return password
+
+
 # ═══════════════════════════════════════════════════════
 # 核心注册/登录流程
 # ═══════════════════════════════════════════════════════
@@ -738,7 +742,6 @@ def _do_one(
     if delay > 0:
         time.sleep(delay)
 
-
     start_t = time.time()
 
     used = set()
@@ -755,7 +758,7 @@ def _do_one(
         log.info(f"  🌐 代理: {proxy or '无'}")
         try:
             password = generate_password()
-            result = register_account(account, mail_api, proxy, used,password)
+            result = register_account(account, mail_api, proxy, used, password)
             elapsed = round(time.time() - start_t, 1)
             result["elapsed_seconds"] = elapsed
 
@@ -804,7 +807,7 @@ def upload_and_cleanup(directory: str):
         try:
             with open(fpath, "rb") as f:
                 resp = std_requests.post(
-                    CPA_URL+f'/v0/management/auth-files?name={fname}',
+                    CPA_URL + f'/v0/management/auth-files?name={fname}',
                     files={"file": (fname, f, "application/json")},
                     headers={"Authorization": f"Bearer {MANAGEMENT_KEY}"},
                     timeout=30,
@@ -836,9 +839,19 @@ def main():
     log.info(" codex 注册机")
     log.info("=" * 55)
 
+    # 检查必要的环境变量
+    if not MAIL_API_URL:
+        log.error("❌ MAIL_API_URL 环境变量未设置")
+        sys.exit(1)
+    if not MAIL_API_AUTH:
+        log.error("❌ MAIL_API_AUTH 环境变量未设置")
+        sys.exit(1)
+    if not EMAIL_DOMAINS:
+        log.error("❌ EMAIL_DOMAINS 环境变量未设置")
+        sys.exit(1)
+
     mail_api = MailAPI(worker_url=MAIL_API_URL, admin_auth=MAIL_API_AUTH)
     log.info(f"📨 MailAPI: {MAIL_API_URL}")
-
 
     # 加载代理池
     proxy_pool = load_proxy_pool()
@@ -893,7 +906,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # 修复 missing import
+    import string
     main()
-
-
-
+[file content end]
