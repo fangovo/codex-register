@@ -1,29 +1,32 @@
+name: Run codex_register
+on:
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "How many to run"
+        required: true
+        default: "10"
+      workers:
+        description: "Number of concurrent workers"
+        required: true
+        default: "1"
+  push:
+    branches: [ "main" ]
 
-  name: Run codex_register
-  on:
-    workflow_dispatch:
-      inputs:
-        count:
-          description: "How many to run"
-          required: true
-          default: "10"
-    push:
-      branches: [ "main" ]
-
-  jobs:
-    run:
-      runs-on: ubuntu-latest
-      env:
-        EMAIL_DOMAINS: ${{ secrets.EMAIL_DOMAINS }}
-        CPA_URL: ${{ secrets.CPA_URL }}
-        MANAGEMENT_KEY: ${{ secrets.MANAGEMENT_KEY }}
-        MAIL_API_URL: ${{ secrets.MAIL_API_URL }}
-        MAIL_API_AUTH: ${{ secrets.MAIL_API_AUTH }}
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-python@v5
-          with:
-            python-version: "3.11"
-        - run: pip install -r requirements.txt
-          if: ${{ hashFiles('requirements.txt') != '' }}
-        - run: python codex_register.py --count ${{ inputs.count }} --workers 1
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      EMAIL_DOMAINS: ${{ secrets.EMAIL_DOMAINS }}
+      CPA_URL: ${{ secrets.CPA_URL }}
+      MANAGEMENT_KEY: ${{ secrets.MANAGEMENT_KEY }}
+      MAIL_API_URL: ${{ secrets.MAIL_API_URL }}
+      MAIL_API_AUTH: ${{ secrets.MAIL_API_AUTH }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+        if: ${{ hashFiles('requirements.txt') != '' }}
+      - run: python codex_register.py --count ${{ inputs.count }} --workers ${{ inputs.workers }}
