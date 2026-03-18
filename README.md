@@ -8,3 +8,7 @@ Token 上传服务器密码:MANAGEMENT_KEY
 MailAPI 配置邮箱:MAIL_API_URL
 
 MailAPI 配置邮箱密码:MAIL_API_AUTH
+
+清理401得cpa网站:CPA_BASE_URL
+
+清理401得cpa网站密码:CPA_TOKEN
