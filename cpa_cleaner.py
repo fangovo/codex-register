@@ -25,6 +25,16 @@ class AuthFile:
     queryState: str = "unqueried"  # unqueried, ok, quota, failed, unknown
     hasQuota: Optional[bool] = None
     deleteEligible: bool = False
+    
+    def __hash__(self):
+        """使AuthFile可哈希，用于set"""
+        return hash(self.name)
+    
+    def __eq__(self, other):
+        """定义相等性比较"""
+        if not isinstance(other, AuthFile):
+            return False
+        return self.name == other.name
 
 
 class CPAuthCleaner:
@@ -637,7 +647,9 @@ class CPAuthCleaner:
             "disabled": 0,
             "codex_count": stats['codex_count']
         }
-        deleted_set = set()
+        
+        # 用集合存储已删除的文件名（而不是对象）
+        deleted_names = set()
         
         # 1. 删除401失效文件
         if deletable:
@@ -648,7 +660,7 @@ class CPAuthCleaner:
                     ok = self.delete_by_name(item.name)
                     if ok:
                         results["deleted"] += 1
-                        deleted_set.add(item)
+                        deleted_names.add(item.name)  # 存储文件名而不是对象
                         # 更新codex_count（删除后减少）
                         results["codex_count"] -= 1
                     time.sleep(0.2)  # 避免请求过快
@@ -656,32 +668,39 @@ class CPAuthCleaner:
                     print(f"删除失败: {e}")
         
         # 从列表中移除已删除的文件（用于后续的启用/禁用操作）
-        remaining_files = [f for f in files if f not in deleted_set]
-        
-        # 重新统计剩余文件（用于更新codex_count）
-        if deleted_set:
+        if deleted_names:
+            remaining_files = [f for f in files if f.name not in deleted_names]
+            # 重新统计剩余文件（用于更新codex_count）
             remaining_stats = self.collect_stats(remaining_files)
             results["codex_count"] = remaining_stats['codex_count']
+        else:
+            remaining_files = files
         
         # 2. 启用健康的文件
         if enable_targets:
             print(f"\n开始启用 {len(enable_targets)} 个健康文件...")
-            success, failed, unsupported = self._update_items_disabled_state(
-                enable_targets, False, "启用"
-            )
-            results["enabled"] = success
-            if failed:
-                print(f"启用失败: {failed}")
+            # 过滤掉已删除的文件
+            valid_enable_targets = [f for f in enable_targets if f.name not in deleted_names]
+            if valid_enable_targets:
+                success, failed, unsupported = self._update_items_disabled_state(
+                    valid_enable_targets, False, "启用"
+                )
+                results["enabled"] = success
+                if failed:
+                    print(f"启用失败: {failed}")
         
         # 3. 禁用无额度的文件
         if disable_targets:
             print(f"\n开始禁用 {len(disable_targets)} 个无额度文件...")
-            success, failed, unsupported = self._update_items_disabled_state(
-                disable_targets, True, "禁用"
-            )
-            results["disabled"] = success
-            if failed:
-                print(f"禁用失败: {failed}")
+            # 过滤掉已删除的文件
+            valid_disable_targets = [f for f in disable_targets if f.name not in deleted_names]
+            if valid_disable_targets:
+                success, failed, unsupported = self._update_items_disabled_state(
+                    valid_disable_targets, True, "禁用"
+                )
+                results["disabled"] = success
+                if failed:
+                    print(f"禁用失败: {failed}")
         
         print(f"\n清理完成: 剩余Codex文件 {results['codex_count']}, 已删 {results['deleted']}, 已启用 {results['enabled']}, 已禁用 {results['disabled']}")
         return results
