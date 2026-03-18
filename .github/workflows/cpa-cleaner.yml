@@ -1,19 +1,13 @@
 name: CPA 401 认证文件清理
 
 on:
-  schedule:
-    # 每天凌晨2点运行
-    - cron: '0 2 * * *'
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:  # 只保留手动触发
     inputs:
-      mode:
-        description: '运行模式 (full 或 quick)'
-        required: true
-        default: 'full'
-        type: choice
-        options:
-          - full
-          - quick
+      concurrency:
+        description: '并发数 (默认: 4)'
+        required: false
+        default: '4'
+        type: string
 
 jobs:
   cleanup:
@@ -37,23 +31,26 @@ jobs:
         run: |
           echo "测试网络连接..."
           curl -I https://www.google.com || true
+          echo "测试目标URL连接..."
+          curl -I ${{ secrets.CPA_BASE_URL }} || true
       
-      - name: 运行 CPA 清理器
+      - name: 运行 CPA 清理器 (FULL模式)
         id: cleanup
         env:
           CPA_BASE_URL: ${{ secrets.CPA_BASE_URL }}
           CPA_TOKEN: ${{ secrets.CPA_TOKEN }}
-          CPA_MODE: ${{ github.event.inputs.mode || 'full' }}
-          CPA_CONCURRENCY: 4
+          CPA_CONCURRENCY: ${{ github.event.inputs.concurrency || '4' }}
         run: |
           python cpa_cleaner.py
       
-      - name: 发送通知
+      - name: 显示结果
         if: always()
         run: |
-          echo "## CPA清理结果" >> $GITHUB_STEP_SUMMARY
+          echo "## CPA FULL模式清理结果" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- 状态: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- 删除: ${{ steps.cleanup.outputs.deleted }}" >> $GITHUB_STEP_SUMMARY
-          echo "- 启用: ${{ steps.cleanup.outputs.enabled }}" >> $GITHUB_STEP_SUMMARY
-          echo "- 禁用: ${{ steps.cleanup.outputs.disabled }}" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 数量 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 状态 | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 删除 | ${{ steps.cleanup.outputs.deleted }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 启用 | ${{ steps.cleanup.outputs.enabled }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 禁用 | ${{ steps.cleanup.outputs.disabled }} |" >> $GITHUB_STEP_SUMMARY
