@@ -1,0 +1,38 @@
+name: CPA 401 认证文件清理
+
+on:
+  schedule:
+    # 每天凌晨2点运行
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+      
+      - name: 设置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: 安装依赖
+        run: |
+          pip install requests
+      
+      - name: 运行 CPA 清理器
+        env:
+          CPA_BASE_URL: ${{ secrets.CPA_BASE_URL }}
+          CPA_TOKEN: ${{ secrets.CPA_TOKEN }}
+          CPA_MODE: full  # 或 quick
+          CPA_CONCURRENCY: 4
+        run: |
+          python cpa_cleaner.py
+      
+      - name: 发送通知 (可选)
+        if: always()
+        run: |
+          echo "清理完成 - 删除: ${{ steps.cleanup.outputs.deleted }}, 启用: ${{ steps.cleanup.outputs.enabled }}, 禁用: ${{ steps.cleanup.outputs.disabled }}"
