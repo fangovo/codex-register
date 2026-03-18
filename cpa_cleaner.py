@@ -2,7 +2,7 @@ import requests
 import json
 import time
 from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import sys
@@ -194,13 +194,6 @@ class CPAuthCleaner:
             print(f"未知错误: {e}")
             traceback.print_exc()
             raise
-    
-    def fetch_non_active_files(self) -> List[AuthFile]:
-        """获取非活跃文件"""
-        all_files = self.fetch_all_files()
-        non_active = [f for f in all_files if f.status.lower() != "active"]
-        print(f"非活跃文件: {len(non_active)}")
-        return non_active
     
     def query_usage_by_auth_index(self, file_item: AuthFile) -> Tuple[bool, Optional[int], Optional[Dict], str]:
         """查询使用情况"""
@@ -702,49 +695,6 @@ class CPAuthCleaner:
             print(f"\n错误: {e}")
             traceback.print_exc()
             raise
-    
-    def run_quick_cleanup(self) -> Dict[str, Any]:
-        """
-        快速清理流程:
-        1. 只获取非活跃文件
-        2. 批量查询状态
-        3. 清理401文件
-        """
-        print("=" * 60)
-        print("开始CPA快速清理流程")
-        print("=" * 60)
-        
-        try:
-            # 1. 获取非活跃文件
-            print("\n[1/3] 获取非活跃文件列表...")
-            files = self.fetch_non_active_files()
-            print(f"获取到 {len(files)} 个非活跃文件")
-            
-            codex_files = [f for f in files if self._supports_active_check(f)]
-            print(f"其中Codex文件: {len(codex_files)}")
-            
-            if not codex_files:
-                print("没有Codex文件，退出")
-                return {"deleted": 0, "enabled": 0, "disabled": 0}
-            
-            # 2. 批量查询状态
-            print("\n[2/3] 查询文件状态...")
-            files = self.query_files_batch(files)
-            
-            # 3. 清理401文件
-            print("\n[3/3] 执行清理...")
-            results = self.clean_401_files(files)
-            
-            print("\n" + "=" * 60)
-            print("快速清理流程完成")
-            print("=" * 60)
-            
-            return results
-            
-        except Exception as e:
-            print(f"\n错误: {e}")
-            traceback.print_exc()
-            raise
 
 
 def main():
@@ -757,7 +707,7 @@ def main():
         token = os.environ.get("CPA_TOKEN")
         
         print("=" * 60)
-        print("CPA 401认证文件清理器")
+        print("CPA 401认证文件清理器 (FULL模式)")
         print("=" * 60)
         
         if not base_url or not token:
@@ -772,20 +722,15 @@ def main():
         
         # 可选配置
         concurrency = int(os.environ.get("CPA_CONCURRENCY", "4"))
-        mode = os.environ.get("CPA_MODE", "full")  # full 或 quick
         
         print(f"\n配置信息:")
         print(f"  Base URL: {base_url}")
         print(f"  Token: {token[:10]}...{token[-5:] if len(token) > 15 else token}")
         print(f"  并发数: {concurrency}")
-        print(f"  模式: {mode}")
+        print(f"  模式: FULL (完整清理)")
         
         cleaner = CPAuthCleaner(base_url, token, concurrency)
-        
-        if mode == "quick":
-            results = cleaner.run_quick_cleanup()
-        else:
-            results = cleaner.run_full_cleanup()
+        results = cleaner.run_full_cleanup()
         
         # 输出结果
         print(f"\n最终结果:")
