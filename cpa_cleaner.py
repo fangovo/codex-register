@@ -433,6 +433,7 @@ class CPAuthCleaner:
         """收集统计信息"""
         stats = {
             "total": len(files),
+            "total_codex": 0,
             "unqueried": 0,
             "healthy": 0,
             "quota": 0,
@@ -444,6 +445,8 @@ class CPAuthCleaner:
         for item in files:
             if not self._supports_active_check(item):
                 continue
+            
+            stats["total_codex"] += 1
             
             if item.queryState == "ok":
                 stats["healthy"] += 1
@@ -584,7 +587,10 @@ class CPAuthCleaner:
         """
         if not files:
             print("没有文件需要处理")
-            return {"deleted": 0, "enabled": 0, "disabled": 0}
+            return {"deleted": 0, "enabled": 0, "disabled": 0, "total": 0, "total_codex": 0}
+        
+        # 统计总数
+        stats = self.collect_stats(files)
         
         # 筛选需要操作的文件
         deletable = [
@@ -605,15 +611,36 @@ class CPAuthCleaner:
             and not f.disabled and f.name and f.name != "(no-name)"
         ]
         
-        print(f"待删除(401): {len(deletable)}")
-        print(f"待启用(健康): {len(enable_targets)}")
-        print(f"待禁用(无额度): {len(disable_targets)}")
+        print(f"\n文件统计:")
+        print(f"  总文件数: {stats['total']}")
+        print(f"  Codex文件: {stats['total_codex']}")
+        print(f"  健康: {stats['healthy']}")
+        print(f"  无额度: {stats['quota']}")
+        print(f"  失效(401): {stats['failed']}")
+        print(f"  异常: {stats['unknown']}")
+        print(f"  未查询: {stats['unqueried']}")
+        print(f"\n待操作:")
+        print(f"  待删除(401): {len(deletable)}")
+        print(f"  待启用(健康): {len(enable_targets)}")
+        print(f"  待禁用(无额度): {len(disable_targets)}")
         
         if not deletable and not enable_targets and not disable_targets:
             print("无需任何操作")
-            return {"deleted": 0, "enabled": 0, "disabled": 0}
+            return {
+                "deleted": 0, 
+                "enabled": 0, 
+                "disabled": 0, 
+                "total": stats['total'],
+                "total_codex": stats['total_codex']
+            }
         
-        results = {"deleted": 0, "enabled": 0, "disabled": 0}
+        results = {
+            "deleted": 0, 
+            "enabled": 0, 
+            "disabled": 0,
+            "total": stats['total'],
+            "total_codex": stats['total_codex']
+        }
         deleted_set = set()
         
         # 1. 删除401失效文件
@@ -675,7 +702,7 @@ class CPAuthCleaner:
             
             if not codex_files:
                 print("没有Codex文件，退出")
-                return {"deleted": 0, "enabled": 0, "disabled": 0}
+                return {"deleted": 0, "enabled": 0, "disabled": 0, "total": len(files), "total_codex": 0}
             
             # 2. 批量查询状态
             print("\n[2/3] 查询文件状态...")
@@ -734,6 +761,8 @@ def main():
         
         # 输出结果
         print(f"\n最终结果:")
+        print(f"  总文件数: {results['total']}")
+        print(f"  Codex文件: {results['total_codex']}")
         print(f"  删除: {results['deleted']}")
         print(f"  启用: {results['enabled']}")
         print(f"  禁用: {results['disabled']}")
@@ -741,6 +770,8 @@ def main():
         # GitHub Actions 输出
         if "GITHUB_OUTPUT" in os.environ:
             with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                f.write(f"total={results['total']}\n")
+                f.write(f"total_codex={results['total_codex']}\n")
                 f.write(f"deleted={results['deleted']}\n")
                 f.write(f"enabled={results['enabled']}\n")
                 f.write(f"disabled={results['disabled']}\n")
